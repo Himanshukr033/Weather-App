@@ -3,30 +3,59 @@ import {
   Text,
   View,
   TextInput,
-  TouchableOpacity,
+  
   Dimensions,
-  StatusBar,
 } from 'react-native';
-import React, {useState} from 'react';
-import {MagnifyingGlassIcon} from 'react-native-heroicons/outline';
+import React, {useCallback, useState} from 'react';
+import {MagnifyingGlassIcon, XMarkIcon} from 'react-native-heroicons/outline';
 import {MapPinIcon} from 'react-native-heroicons/solid';
+import {fetchLocations} from '../API/WeatherAPI';
+import {debounce} from 'lodash';
+import {TouchableOpacity} from 'react-native-gesture-handler';
+import {useDispatch} from 'react-redux';
+import {updateLocation} from '../redux/locationSlice';
+import {getData, storeData} from './LocalStorage';
+
+
 
 const {width, height} = Dimensions.get('window');
 
 export default function Search() {
   const [showSearch, toggleSearch] = useState(false);
-  const [location, setLocation] = useState([1, 2, 3]);
+  const [location, setLocation] = useState([]);
+  const [selectedLoc, setSelectedLoc] = useState('');
+  const dispatch = useDispatch();
+
 
   const handleLocation = loc => {
-    console.log('location:', loc);
+    console.log('location:', loc.name);
+    setSelectedLoc(`${loc?.name}, ${loc?.country}`);
+    dispatch(updateLocation({city: loc?.name, country: loc?.country}));
+    storeData('city', loc.name);
+    storeData('country', loc.country);
+
   };
+
+
+
+  const handleSearch = value => {
+    if (value.length > 0) {
+      fetchLocations({cityName: value}).then(data => {
+        setLocation(data);
+        console.log(data);
+      });
+    }
+  };
+  const handleTextDebounce = useCallback(debounce(handleSearch, 1200), []);
 
   return (
     <View
       style={{
         zIndex: 50,
+        elevation: Platform.OS === 'android' ? 50 : 0,
         marginHorizontal: 10,
-        height:'auto'
+        height: 'auto',
+        position: 'relative',
       }}>
       <View
         style={{
@@ -42,6 +71,7 @@ export default function Search() {
         }}>
         {showSearch ? (
           <TextInput
+            onChangeText={handleTextDebounce}
             placeholder="Search City"
             placeholderTextColor="gray"
             style={{paddingLeft: 6, flex: 1, color: 'white'}}
@@ -60,7 +90,11 @@ export default function Search() {
             justifyContent: 'center',
             alignItems: 'center',
           }}>
-          <MagnifyingGlassIcon color="white" height="95%" />
+          {showSearch ? (
+            <XMarkIcon height="100%" color="white" />
+          ) : (
+            <MagnifyingGlassIcon color="white" height="95%" />
+          )}
         </TouchableOpacity>
       </View>
       {location.length > 0 && showSearch ? (
@@ -98,7 +132,7 @@ export default function Search() {
                     fontWeight: '500',
                   }}>
                   {' '}
-                  London Bridge
+                  {loc?.name}, {loc?.country}
                 </Text>
               </TouchableOpacity>
             );
